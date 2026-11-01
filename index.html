@@ -101,6 +101,8 @@ main { padding-block: 4px 180px; overflow-x: clip; }
 .nav { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
 .nav .od { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
 .nav .pz { font-size: 13.5px; color: var(--text2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.nav .det { font-size: 13.5px; color: var(--text2); white-space: pre-wrap; overflow-wrap: anywhere; border-top: 1px solid var(--line); padding-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.nav .det .dm { font-size: 12.5px; color: var(--muted); }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .btn { border: 1px solid var(--line); background: var(--card2); border-radius: 10px; padding: 9px 14px; font-weight: 650; }
 .btn.pri { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -113,6 +115,10 @@ main { padding-block: 4px 180px; overflow-x: clip; }
 .add input { flex: 1; min-width: 0; height: 46px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--card); padding: 0 14px; font-size: 16px; }
 .add input:focus { border-color: var(--accent); outline: none; }
 .add button { width: 46px; height: 46px; border-radius: 14px; border: 0; background: var(--accent); color: #fff; font-size: 24px; line-height: 1; }
+.add button.mic { background: var(--card); border: 1.5px solid var(--line); color: var(--text); display: flex; align-items: center; justify-content: center; }
+.add button.mic svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.add button.mic.on { background: var(--red, #FF5A5F); border-color: transparent; color: #fff; animation: micPuls 1.2s ease-in-out infinite; }
+@keyframes micPuls { 50% { opacity: .65; } }
 .hint { font-size: 11.5px; color: var(--faint); padding-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tabs { display: grid; grid-template-columns: repeat(4, 1fr); }
 .tab { border: 0; background: none; padding: 8px 0 10px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 600; color: var(--muted); position: relative; }
@@ -372,6 +378,7 @@ body.kopen .toast { top: calc(14px + env(safe-area-inset-top, 0px)); bottom: aut
   <div class="wrap" id="addWrap">
     <div class="add" id="addForm">
       <input id="addInput" maxlength="400" enterkeyhint="send" autocomplete="off" placeholder="Nový úkol…  #zakázka >kdo pá !1" aria-label="Nový úkol">
+      <button type="button" id="micBtn" class="mic" aria-label="Namluvit úkol" hidden><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></button>
       <button type="button" id="addBtn" aria-label="Přidat úkol">+</button>
     </div>
     <div class="hint" id="addHint">#zakázka · &gt;komu · &lt;od koho · !1 priorita · na konci dnes, zítra, pá, 6. 11.</div>
@@ -395,6 +402,7 @@ var CFG = window.FIREBASE_CONFIG || null;     // config.js – zapisuje ho PC ap
 // ---------------------------------------------------------------- stav
 var S = {
   konci: {},
+  navDetail: {},       // id návrhu → rozbalený detail
   db: null, mcp: null,
   stav: {},            // dokumenty kolekce stav
   ops: [],             // čekající změny (kolekce zmeny)
@@ -862,6 +870,16 @@ function graf(dny) {
   return '<svg class="chart" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Hotové a nové úkoly po dnech">' + out + "</svg>";
 }
 
+function navrhDetail(u) {
+  var zm = (u.mail || "").split("|"), r = [];
+  if (zm[0]) r.push("Od: " + zm[0]);
+  if (zm[1]) r.push("Předmět: " + zm[1]);
+  if (zm[2]) r.push("Přijato: " + datumCas(zm[2]));
+  if (u.zakazka) r.push("#" + u.zakazka);
+  return '<div class="det">' + (r.length ? '<div class="dm">' + r.map(esc).join("<br>") + "</div>" : "") +
+    "<div>" + (u.detail ? esc(u.detail) : "K návrhu nejsou další podrobnosti.") + "</div></div>";
+}
+
 function renderNavrhy(m) {
   $("chips").innerHTML = ""; $("title").textContent = "Ke schválení";
   if (!m.navrhy.length) { $("view").innerHTML = '<div class="empty"><b>Nic ke schválení</b>Návrhy úkolů z pošty se tu objeví po kontrole mailů.</div>'; return; }
@@ -871,7 +889,8 @@ function renderNavrhy(m) {
       return '<div class="nav" data-id="' + esc(u.id) + '"><div class="tn">' + esc(u.nazev) + '</div>' +
         (u.od ? '<div class="od">od ' + esc(u.od) + (tt ? " · termín " + esc(tt.t) : "") + "</div>" : "") +
         (u.poznamka ? '<div class="pz">' + esc(u.poznamka) + "</div>" : "") +
-        '<div class="row"><button class="btn pri wide" data-act="prijmout">Přijmout</button><button class="btn" data-act="upravitprijmout">Upravit</button><button class="btn danger" data-act="zamitnout">Zahodit</button></div></div>';
+        (S.navDetail[u.id] ? navrhDetail(u) : "") +
+        '<div class="row"><button class="btn pri wide" data-act="prijmout">Přijmout</button><button class="btn" data-act="navdetail">' + (S.navDetail[u.id] ? "Méně" : "Detail") + '</button><button class="btn" data-act="upravitprijmout">Upravit</button><button class="btn danger" data-act="zamitnout">Zahodit</button></div></div>';
     }).join("") + "</div>";
 }
 
@@ -1329,6 +1348,7 @@ document.addEventListener("click", function (e) {
     else if ((act === "prijmout" || act === "zamitnout") && dvojite()) return;
     else if (act === "prijmout") posli("prijmout", id).then(function (opId) { toast("Přijato: " + u.nazev, function () { vratit(opId, ["vratit_navrh", id]); }); }, function () {});
     else if (act === "upravitprijmout") sheet(u, "navrh");
+    else if (act === "navdetail") { S.navDetail[id] = !S.navDetail[id]; render(); }
     else if (act === "zamitnout") posli("zamitnout", id).then(function (opId) { toast("Zahozeno: " + u.nazev, function () { vratit(opId, ["obnovit_navrh", id, Object.assign(obnovPole(u), { od: u.od || "" })]); }); }, function () {});
     return;
   }
@@ -1358,6 +1378,43 @@ function pridejZRadku() {
   }, function () { inp.value = text; });
 }
 $("addBtn").addEventListener("click", function (e) { e.preventDefault(); pridejZRadku(); });
+// namluvení úkolu – text se uloží, jak zazněl, a Claude ho pak zestruční, popíše a zařadí
+(function () {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition, btn = $("micBtn");
+  if (!SR) return;
+  btn.hidden = false;
+  var rec = null, text = "", poslano = false;
+  function konec() { btn.classList.remove("on"); rec = null; }
+  btn.addEventListener("click", function (e) {
+    e.preventDefault();
+    if (rec) { rec.stop(); return; }
+    rec = new SR(); rec.lang = "cs-CZ"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+    text = ""; poslano = false;
+    var inp = $("addInput"), puvodni = inp.value;
+    rec.onresult = function (ev) {
+      var t = "";
+      for (var i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript;
+      text = t.trim(); inp.value = text;
+    };
+    rec.onerror = function (ev) {
+      konec();
+      if (ev.error === "not-allowed" || ev.error === "service-not-allowed") toast("Povol mikrofon pro tuto appku v nastavení Chromu.");
+      else if (ev.error !== "aborted" && ev.error !== "no-speech") toast("Namluvení se nepovedlo, zkus to znovu.");
+    };
+    rec.onend = function () {
+      konec();
+      if (poslano) return;
+      if (!text) { inp.value = puvodni; return; }
+      poslano = true; inp.value = "";
+      var nid = newId("m"), nazev = text.slice(0, 300);
+      posli("pridat", nid, { nazev: nazev, diktat: true }).then(function (opId) {
+        toast("Namluveno – Claude to zestruční a zařadí", function () { vratit(opId, ["smazat", nid]); });
+      }, function () { inp.value = text; });
+    };
+    btn.classList.add("on");
+    try { rec.start(); } catch (er) { konec(); }
+  });
+})();
 $("addInput").addEventListener("keydown", function (e) { if (e.key === "Enter" || e.keyCode === 13) { e.preventDefault(); pridejZRadku(); } });
 document.addEventListener("keydown", function (e) {
   if (e.key !== "Escape") return;

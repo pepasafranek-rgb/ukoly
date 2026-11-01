@@ -1,5 +1,5 @@
 // Úkoly – offline start appky. Data řeší Firestore sám (offline fronta), tady se ukládá jen appka.
-const VERZE = "ukoly-v9";
+const VERZE = "ukoly-v10";
 const SOUBORY = ["./", "index.html", "config.js", "manifest.webmanifest", "icon-192.png", "icon-512.png",
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js",
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js",
