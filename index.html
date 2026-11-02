@@ -117,8 +117,38 @@ main { padding-block: 4px 180px; overflow-x: clip; }
 .add button { width: 46px; height: 46px; border-radius: 14px; border: 0; background: var(--accent); color: #fff; font-size: 24px; line-height: 1; }
 .add button.mic { background: var(--card); border: 1.5px solid var(--line); color: var(--text); display: flex; align-items: center; justify-content: center; }
 .add button.mic svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
-.add button.mic.on { background: var(--red, #FF5A5F); border-color: transparent; color: #fff; animation: micPuls 1.2s ease-in-out infinite; }
-@keyframes micPuls { 50% { opacity: .65; } }
+.add button.mic.on { background: var(--accent); border-color: transparent; color: #fff; }
+/* poslech – namluvení úkolu */
+.mic-ui { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; justify-content: flex-end; }
+.mic-ui[hidden] { display: none; }
+.mic-ui .mscrim { position: absolute; inset: 0; background: rgba(0,0,0,.55); backdrop-filter: blur(6px); animation: fadeIn .25s ease-out; }
+.mic-ui .mpanel { position: relative; background: var(--side); border-radius: 24px 24px 0 0; box-shadow: var(--shadow); padding: 26px 20px calc(18px + env(safe-area-inset-bottom, 0px));
+  display: flex; flex-direction: column; align-items: center; gap: 14px; animation: sheetIn .34s cubic-bezier(.2, .9, .25, 1); }
+.mic-ui.out .mpanel { animation: sheetOut .22s ease-in forwards; } .mic-ui.out .mscrim { animation: fadeOut .22s ease-in forwards; }
+.morb { position: relative; width: 132px; height: 132px; display: grid; place-items: center; margin: 4px 0 2px; }
+.morb .jadro { position: relative; z-index: 2; width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--accent) 70%, #fff), var(--accent) 60%, color-mix(in srgb, var(--accent) 70%, #000));
+  box-shadow: 0 0 0 6px var(--accent-soft), 0 10px 28px color-mix(in srgb, var(--accent) 45%, transparent); transition: transform .18s ease; }
+.morb .jadro svg { width: 32px; height: 32px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.morb .vlna { position: absolute; inset: 28px; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; animation: vlna 2.4s cubic-bezier(.2, .6, .3, 1) infinite; }
+.morb .vlna:nth-child(2) { animation-delay: .8s; } .morb .vlna:nth-child(3) { animation-delay: 1.6s; }
+.mic-ui.zvuk .morb .vlna { animation-duration: 1.3s; border-width: 3px; }
+.mic-ui.zvuk .morb .jadro { animation: dech .9s ease-in-out infinite; }
+.mic-ui.hotovo .morb .vlna { animation: none; opacity: 0; }
+.mic-ui.hotovo .morb .jadro { background: var(--green); box-shadow: 0 0 0 6px color-mix(in srgb, var(--green) 18%, transparent); animation: none; transform: scale(1.04); }
+.mic-ui.chyba .morb .vlna { animation: none; opacity: 0; } .mic-ui.chyba .morb .jadro { background: var(--card2); color: var(--muted); box-shadow: none; animation: none; }
+@keyframes vlna { 0% { transform: scale(.85); opacity: .55; } 100% { transform: scale(2.1); opacity: 0; } }
+@keyframes dech { 50% { transform: scale(1.08); } }
+.morb .ik-ok { display: none; stroke-width: 2.6; } .mic-ui.hotovo .ik-mic { display: none; } .mic-ui.hotovo .ik-ok { display: block; animation: draw .45s ease-out both; stroke-dasharray: 26; }
+.mic-ui.hotovo .row { visibility: hidden; }
+.mstav { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.mic-ui.hotovo .mstav { color: var(--green); } .mic-ui.chyba .mstav { color: var(--muted); }
+.mtext { width: 100%; min-height: 58px; max-height: 32vh; overflow-y: auto; text-align: center; font-size: 21px; line-height: 1.35; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.mtext .int { color: var(--muted); font-weight: 500; }
+.mtext .ph { color: var(--faint); font-weight: 500; font-size: 17px; }
+.mhint { font-size: 12.5px; color: var(--muted); text-align: center; max-width: 320px; }
+.mic-ui .row { width: 100%; margin-top: 4px; }
+.task .diktat { color: var(--accent); font-weight: 700; }
 .hint { font-size: 11.5px; color: var(--faint); padding-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tabs { display: grid; grid-template-columns: repeat(4, 1fr); }
 .tab { border: 0; background: none; padding: 8px 0 10px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 600; color: var(--muted); position: relative; }
@@ -373,6 +403,18 @@ body.kopen .toast { top: calc(14px + env(safe-area-inset-top, 0px)); bottom: aut
 </header>
 
 <main><div class="wrap" id="view"></div></main>
+
+<div class="mic-ui" id="micUI" hidden role="dialog" aria-label="Namluvení úkolu">
+  <div class="mscrim" id="micScrim"></div>
+  <div class="mpanel wrap">
+    <div class="morb"><i class="vlna"></i><i class="vlna"></i><i class="vlna"></i>
+      <div class="jadro"><svg class="ik-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg><svg class="ik-ok" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></div></div>
+    <div class="mstav" id="micStav">Poslouchám</div>
+    <div class="mtext" id="micText"><span class="ph">Řekni, co je potřeba udělat…</span></div>
+    <div class="mhint" id="micHint">Po odmlce se úkol sám uloží. Claude ho pak zestruční, doplní popis a zařadí.</div>
+    <div class="row"><button class="btn" id="micZrusit">Zrušit</button><button class="btn pri wide" id="micHotovo">Hotovo</button></div>
+  </div>
+</div>
 
 <div class="dock">
   <div class="wrap" id="addWrap">
@@ -705,6 +747,7 @@ function taskHtml(u, m, opts) {
              u.claude_stav === "hotovo" ? ["✦ výsledek od Clauda", "var(--green)"] : null;
     if (cs) parts.push('<span class="live" style="color:' + cs[1] + ';font-weight:700">' + cs[0] + "</span>");
   }
+  if (!opts.done && (u.k_uceseni || u.diktat)) parts.push('<span class="diktat">🎤 namluveno · čeká na úpravu Clauda</span>');
   if (u._ceka) parts.push('<span class="pending">čeká na PC</span>');
   return '<div class="task p' + (u.priorita || 2) + (opts.done || S.konci[u.id] ? " done" : "") + '" data-id="' + esc(u.id) + '">' +
     '<button class="check" data-act="' + (opts.done ? "otevrit" : "hotovo") + '" aria-label="' + (opts.done ? "Vrátit mezi otevřené" : "Hotovo") + '"><svg viewBox="0 0 24 24"><path d="m5 12 4.5 4.5L19 7"/></svg></button>' +
@@ -1383,37 +1426,75 @@ $("addBtn").addEventListener("click", function (e) { e.preventDefault(); pridejZ
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition, btn = $("micBtn");
   if (!SR) return;
   btn.hidden = false;
-  var rec = null, text = "", poslano = false;
-  function konec() { btn.classList.remove("on"); rec = null; }
-  btn.addEventListener("click", function (e) {
-    e.preventDefault();
-    if (rec) { rec.stop(); return; }
+  var ui = $("micUI"), stav = $("micStav"), txt = $("micText"), hint = $("micHint"), bHot = $("micHotovo"), bZr = $("micZrusit");
+  var rec = null, fin = "", int = "", zruseno = false, konec = false, hotovo = false;
+  var HINT = hint.textContent;
+  function kresli() {
+    txt.innerHTML = fin || int ? esc(fin) + (int ? '<span class="int">' + (fin ? " " : "") + esc(int) + "</span>" : "")
+                               : '<span class="ph">Řekni, co je potřeba udělat…</span>';
+    txt.scrollTop = txt.scrollHeight;
+  }
+  function zavri(hned) {
+    if (ui.hidden) return;
+    btn.classList.remove("on");
+    if (hned) { ui.hidden = true; ui.className = "mic-ui"; return; }
+    ui.classList.add("out");
+    setTimeout(function () { ui.hidden = true; ui.className = "mic-ui"; }, 230);
+  }
+  function chyba(t) {
+    ui.classList.remove("zvuk"); ui.classList.add("chyba");
+    stav.textContent = "Nepodařilo se"; hint.textContent = t;
+    bHot.textContent = "Zkusit znovu"; bHot.dataset.znovu = "1";
+  }
+  function uloz() {
+    var t = (fin + " " + int).trim();
+    if (!t) { zavri(); return; }
+    hotovo = true;
+    ui.classList.remove("zvuk"); ui.classList.add("hotovo");
+    stav.textContent = "Uloženo"; hint.textContent = "Úkol je v seznamu, Claude ho při nejbližší kontrole upraví.";
+    var nid = newId("m"), nazev = t.slice(0, 300);
+    posli("pridat", nid, { nazev: nazev, diktat: true }).then(function (opId) {
+      setTimeout(function () { zavri(); toast("Namluveno – Claude to upraví a zařadí", function () { vratit(opId, ["smazat", nid]); }); }, 650);
+    }, function () { zavri(); $("addInput").value = t; });
+  }
+  function start() {
+    fin = ""; int = ""; zruseno = false; konec = false; hotovo = false;
+    ui.className = "mic-ui"; ui.hidden = false;
+    stav.textContent = "Poslouchám"; hint.textContent = HINT; bHot.textContent = "Hotovo"; delete bHot.dataset.znovu;
+    kresli();
+    btn.classList.add("on");
     rec = new SR(); rec.lang = "cs-CZ"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
-    text = ""; poslano = false;
-    var inp = $("addInput"), puvodni = inp.value;
+    rec.onsoundstart = rec.onspeechstart = function () { ui.classList.add("zvuk"); };
+    rec.onsoundend = rec.onspeechend = function () { ui.classList.remove("zvuk"); };
     rec.onresult = function (ev) {
-      var t = "";
-      for (var i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript;
-      text = t.trim(); inp.value = text;
+      var f = "", m = "";
+      for (var i = 0; i < ev.results.length; i++) { if (ev.results[i].isFinal) f += ev.results[i][0].transcript; else m += ev.results[i][0].transcript; }
+      fin = f.trim(); int = m.trim(); kresli();
     };
     rec.onerror = function (ev) {
-      konec();
-      if (ev.error === "not-allowed" || ev.error === "service-not-allowed") toast("Povol mikrofon pro tuto appku v nastavení Chromu.");
-      else if (ev.error !== "aborted" && ev.error !== "no-speech") toast("Namluvení se nepovedlo, zkus to znovu.");
+      konec = true;
+      if (ev.error === "aborted" && zruseno) return;
+      if (ev.error === "not-allowed" || ev.error === "service-not-allowed") chyba("Povol mikrofon pro tuto appku v nastavení Chromu (ikona zámku vedle adresy).");
+      else if (ev.error === "no-speech") chyba("Nic jsem neslyšel. Zkus to znovu a mluv hned po pípnutí.");
+      else if (ev.error === "network") chyba("Rozpoznání řeči potřebuje připojení k internetu.");
+      else chyba("Namluvení se nepovedlo, zkus to znovu.");
     };
     rec.onend = function () {
-      konec();
-      if (poslano) return;
-      if (!text) { inp.value = puvodni; return; }
-      poslano = true; inp.value = "";
-      var nid = newId("m"), nazev = text.slice(0, 300);
-      posli("pridat", nid, { nazev: nazev, diktat: true }).then(function (opId) {
-        toast("Namluveno – Claude to zestruční a zařadí", function () { vratit(opId, ["smazat", nid]); });
-      }, function () { inp.value = text; });
+      rec = null; btn.classList.remove("on"); ui.classList.remove("zvuk");
+      if (zruseno || hotovo || ui.classList.contains("chyba")) return;
+      if ((fin + int).trim()) uloz(); else if (!konec) chyba("Nic jsem neslyšel. Zkus to znovu.");
     };
-    btn.classList.add("on");
-    try { rec.start(); } catch (er) { konec(); }
+    try { rec.start(); } catch (er) { chyba("Mikrofon se nepodařilo spustit."); }
+  }
+  btn.addEventListener("click", function (e) { e.preventDefault(); if (ui.hidden) start(); });
+  bHot.addEventListener("click", function () {
+    if (bHot.dataset.znovu) { start(); return; }
+    if (rec) rec.stop(); else if (!hotovo) uloz();
   });
+  function zrus() { zruseno = true; if (rec) try { rec.abort(); } catch (er) {} zavri(); }
+  bZr.addEventListener("click", zrus);
+  $("micScrim").addEventListener("click", zrus);
+  document.addEventListener("visibilitychange", function () { if (document.hidden && rec) zrus(); });
 })();
 $("addInput").addEventListener("keydown", function (e) { if (e.key === "Enter" || e.keyCode === 13) { e.preventDefault(); pridejZRadku(); } });
 document.addEventListener("keydown", function (e) {
