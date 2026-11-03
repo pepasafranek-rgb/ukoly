@@ -322,6 +322,28 @@ main { padding-block: 4px 180px; overflow-x: clip; }
 .kk.on .kktx { color: var(--muted); background-size: 100% 1px; }
 .kk.just.on .kktx { animation: strike .4s ease-out both; animation-delay: calc(var(--ad, 0ms) + .12s); }
 .kk { -webkit-touch-callout: none; user-select: none; }
+.mpo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kret { margin-top: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 8px 8px; display: flex; flex-direction: column; gap: 2px; }
+.kret .kkh { margin-bottom: 6px; }
+.kret .kkh b.g { color: var(--green); }
+.kr { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; background: transparent; color: var(--text2); border-radius: 10px; padding: 8px 8px 8px calc(8px + var(--h, 0) * 16px); font-size: 14.5px; position: relative; }
+.kr:active { background: var(--hover); }
+.kr[disabled] { opacity: 1; }
+.kr.ten { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--text); font-weight: 650; }
+.kr.hot { color: var(--muted); }
+.krd { flex: none; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--faint); background: var(--card); display: grid; place-items: center; }
+.krd .ic { width: 10px; height: 10px; stroke: #fff; stroke-width: 3.4; }
+.kr.hot .krd { background: var(--green); border-color: var(--green); }
+.kr.ten .krd { border-color: var(--accent); box-shadow: inset 0 0 0 3px var(--card); background: var(--accent); }
+.krt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.krv { flex: none; font-size: 12px; color: var(--faint); font-weight: 600; }
+.kr.ten .krv { color: var(--accent); }
+.kr.po .krv { color: var(--red); }
+.knav { margin-top: 10px; align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; border: 1px dashed var(--line); background: transparent; color: var(--text2); border-radius: 999px; padding: 7px 14px; font-size: 13.5px; font-weight: 650; }
+.knav .ic, .navinfo .ic { width: 16px; height: 16px; color: var(--accent); }
+.navinfo { display: flex; align-items: center; gap: 8px; background: color-mix(in srgb, var(--accent) 12%, var(--card)); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 12px; padding: 9px 12px; font-size: 13.5px; color: var(--text2); }
+.navinfo b { color: var(--text); font-weight: 650; }
+.ked .wrap > .kb { flex: none; }
 .kkr { display: inline-flex; align-items: center; gap: 10px; }
 .kked { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: var(--card2); color: var(--text2); border-radius: 999px; padding: 4px 10px 4px 8px; font-size: 12.5px; font-weight: 650; }
 .kked .ic { width: 14px; height: 14px; }
@@ -756,6 +778,7 @@ function taskHtml(u, m, opts) {
   if (opts.done) { var dd = parseD(u.dokonceno); if (u.body) parts.push("<span>+" + u.body + " bodů</span>"); if (u.vcas) parts.push("<span>včas</span>"); }
   else if (tt) parts.push('<span class="' + tt.c + '">' + esc(tt.t) + "</span>");
   if (u.kroky && u.kroky.length) parts.push("<span>☑ " + u.kroky.filter(function (k) { return k.hotovo; }).length + "/" + u.kroky.length + "</span>");
+  if (u.navazuje_na && u.retez) { var pr0 = u.retez.filter(function (r) { return r.id === u.navazuje_na; })[0]; if (pr0) parts.push('<span class="mpo">↳ po: ' + esc(pr0.nazev.length > 30 ? pr0.nazev.slice(0, 29) + "…" : pr0.nazev) + "</span>"); }
   if (u.opakovani) parts.push("<span>↻</span>");
   if (u.odhad_min && !opts.done) parts.push("<span>~" + (u.odhad_min >= 60 ? String(Math.round(u.odhad_min / 6) / 10).replace(".", ",") + " h" : u.odhad_min + " min") + "</span>");
   if (u.zakazka) parts.push('<span class="zak">' + esc(u.zakazka) + "</span>");
@@ -1082,20 +1105,29 @@ function konfety(x, y, n) {
 function upravKroky(kroky, p) {
   var seznam = [], pryc = [];
   try { seznam = JSON.parse(p.seznam || "[]"); pryc = JSON.parse(p.smazat || "[]"); } catch (e) { return kroky; }
-  var zbyle = kroky.filter(function (k) { return pryc.indexOf(k.id) < 0; }), nove = [];
+  var zbyle = kroky.filter(function (k) { return pryc.indexOf(k.id) < 0; }), nove = [], chci = [];
   seznam.forEach(function (s) {
     var k = zbyle.filter(function (x) { return x.id && x.id === s.id; })[0];
     if (!k || nove.indexOf(k) >= 0) return;
     var t = String(s.text || "").replace(/[\t\r\n]+/g, " ").trim().slice(0, 300);
-    if (t && !zbyle.some(function (x) { return x !== k && x.text === t; })) k.text = t;
+    if (t) chci.push([k, t]);
     nove.push(k);
   });
   zbyle.forEach(function (k) { if (nove.indexOf(k) < 0) nove.push(k); });
+  // texty až ve výsledku (A→B a B→C i prohození projde), kolidující přejmenování zůstane po starém – stejně jako PC
+  for (var kolo = 0; kolo < 5; kolo++) {
+    var fin = function (k) { var c = chci.filter(function (x) { return x[0] === k; })[0]; return c ? c[1] : k.text; };
+    var kol = chci.filter(function (c) { return nove.some(function (x) { return x !== c[0] && fin(x) === c[1]; }); });
+    if (!kol.length) break;
+    chci = chci.filter(function (c) { return kol.indexOf(c) < 0; });
+  }
+  chci.forEach(function (c) { c[0].text = c[1]; });
   return nove;
 }
 
 /** Editor kroků nad kartou: přepsat text, přetáhnout pořadí (≡), smazat (×). Uloží se jednou změnou. */
 function editorKroku(id, cur, zamer) {
+  if (document.querySelector(".ked")) return;            // editor už je otevřený
   var u = cur(); if (!u || !(u.kroky || []).length) return;
   if (u.kroky.some(function (k) { return !k.id; })) { toast("Kroky se ještě synchronizují s PC – zkus to za chvíli."); return; }
   var puv = u.kroky.map(function (k) { return { id: k.id, text: k.text, hotovo: k.hotovo }; });
@@ -1153,6 +1185,15 @@ function editorKroku(id, cur, zamer) {
   var cil = zamer ? list.querySelector('.kedr[data-id="' + zamer.replace(/"/g, "") + '"] textarea') : null;
   if (cil) setTimeout(function () { cil.focus(); var n = cil.value.length; try { cil.setSelectionRange(n, n); } catch (e) {} }, 240);
 }
+var IKO_RETEZ = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg>';
+/** Nový úkol navazující na u – formulář s předvyplněnou zakázkou, osobou a směrem. */
+function navazat(u, dokoncit) {
+  var n = { nazev: "", zakazka: u.zakazka || "", osoba: u.osoba || "", smer: u.smer || "", priorita: u.priorita || 2, termin: "", _puv: { id: u.id, nazev: u.nazev, stav: u.stav }, _dokoncit: !!dokoncit };
+  if (dokoncit) { var d = today(), k = 0; while (k < 5) { d = addDays(d, 1); if (d.getDay() !== 0 && d.getDay() !== 6) k++; } n.termin = iso(d); }
+  S.kartaKresli = null; S.kartaZavri = null; document.body.classList.remove("kopen");
+  S.kartaZpet = u.id;
+  sheet(n, "navazat");
+}
 var IKO_GRIP = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg>';
 
 function karta(u0) {
@@ -1174,6 +1215,7 @@ function karta(u0) {
   var sh = L.querySelector(".sheet"), scrim = L.querySelector(".scrim"), body = sh.querySelector(".kbody");
   // vrstvu mohl přepsat i někdo jiný (přihlášení, úprava) – uklidit stav karty v každém případě
   function uklid() {
+    document.querySelectorAll(".ked").forEach(function (e) { e.remove(); });   // editor kroků / volba navázání patří ke kartě
     if (S.kartaKresli === kresli) S.kartaKresli = null;
     if (S.kartaZavri === zavri) { S.kartaZavri = null; document.body.classList.remove("kopen"); }
   }
@@ -1244,6 +1286,18 @@ function karta(u0) {
         }).join("") + "</div>";
       var cilP = p;
     }
+    // navazující úkoly (řetěz posílá PC i s hotovými a archivovanými)
+    if (u.retez && u.retez.length > 1) {
+      var rh = u.retez.filter(function (r) { return r.stav === "hotovo"; }).length;
+      h += '<div class="kret"><div class="kkh"><span class="kh">Navazující úkoly</span><b' + (rh === u.retez.length ? ' class="g"' : "") + ">" + rh + " z " + u.retez.length + " hotovo</b></div>" +
+        u.retez.map(function (r) {
+          var ten = r.id === u.id, hr = r.stav === "hotovo", dk = parseD(r.dokonceno), tm = parseD(r.termin), vp = "";
+          if (hr && dk) vp = "hotovo " + dk.getDate() + ". " + (dk.getMonth() + 1) + ".";
+          else if (tm) vp = (tm < dn ? "po termínu " : "do ") + tm.getDate() + ". " + (tm.getMonth() + 1) + ".";
+          return '<button class="kr' + (ten ? " ten" : "") + (hr ? " hot" : "") + (!hr && tm && tm < dn ? " po" : "") + '" data-ret="' + esc(r.id) + '" style="--h:' + Math.min(+r.h || 0, 6) + '"' + (ten ? " disabled" : "") + '><span class="krd">' + (hr ? ico("check") : "") + '</span><span class="krt">' + esc(r.nazev) + "</span>" + (vp || ten ? '<span class="krv">' + esc(vp) + (ten ? (vp ? " · " : "") + "tento" : "") + "</span>" : "") + "</button>";
+        }).join("") + "</div>";
+    }
+    h += '<button class="knav" id="kNav">' + IKO_RETEZ + "<span>Navázat úkol</span></button>";
     // časová osa
     var zz = (u.karta || []).slice().sort(function (a, b2) { return String(a.cas || "").localeCompare(String(b2.cas || "")); });
     h += '<div class="kosah"><span class="kh">Časová osa</span><span>' + (zz.length ? pl(zz.length, "záznam", "záznamy", "záznamů") : "") + "</span></div>";
@@ -1320,6 +1374,27 @@ function karta(u0) {
       };
     });
     if ($("kKrokyEd")) $("kKrokyEd").onclick = function () { editorKroku(id, cur); };
+    body.querySelectorAll("[data-ret]").forEach(function (b) {
+      b.onclick = function () {
+        var x = najdi(model(), b.getAttribute("data-ret"));
+        if (!x) { toast("Tenhle úkol je v telefonu už jen v historii (archiv na PC)."); return; }
+        karta(x);
+      };
+    });
+    if ($("kNav")) $("kNav").onclick = function () {
+      var x = cur(); if (!x) return;
+      if (x.stav === "hotovo") { navazat(x, false); return; }
+      var v = document.createElement("div"); v.className = "ked";
+      v.innerHTML = '<div class="scrim"></div><div class="sheet"><div class="wrap"><div class="kedh"><b>Navázat úkol</b><span>' + esc(x.nazev) + '</span></div>' +
+        '<button class="kb ok" id="nvA">' + ico("check") + "<span>Hotovo a navázat</span></button>" +
+        '<button class="kb ghost" id="nvB">' + IKO_RETEZ + "<span>Navázat, tento nechat otevřený</span></button>" +
+        '<button class="kb ghost" id="nvZ"><span>Zrušit</span></button></div></div>';
+      document.body.appendChild(v);
+      function zav() { v.querySelector(".sheet").classList.add("out"); v.querySelector(".scrim").classList.add("out"); setTimeout(function () { v.remove(); }, 230); }
+      v.querySelector(".scrim").onclick = zav; v.querySelector("#nvZ").onclick = zav;
+      v.querySelector("#nvA").onclick = function () { v.remove(); navazat(x, true); };
+      v.querySelector("#nvB").onclick = function () { v.remove(); navazat(x, false); };
+    };
     // podržení kroku = rovnou upravit jeho text
     body.querySelectorAll(".kk[data-kid]").forEach(function (lb) {
       var tm = null, dlouhe = false, x0 = 0, y0 = 0;
@@ -1379,13 +1454,14 @@ function karta(u0) {
 }
 
 function sheet(u, mode) {
-  var m = model(), isNew = mode === "new", isNavrh = mode === "navrh";
+  var m = model(), isNew = mode === "new" || mode === "navazat", isNavrh = mode === "navrh", puvN = mode === "navazat" ? u._puv : null;
   var L = $("layer"); L.innerHTML = "";
   var scrim = document.createElement("div"); scrim.className = "scrim";
   var sh = document.createElement("div"); sh.className = "sheet"; sh.setAttribute("role", "dialog"); sh.setAttribute("aria-label", "Úkol");
   var prio = u.priorita || 2, smer = u.smer || "";
   var kat = '<option value="">Ostatní</option>' + m.kategorie.map(function (k) { return '<option value="' + esc(k.id) + '"' + (k.id === u.kategorie ? " selected" : "") + ">" + esc(k.nazev) + "</option>"; }).join("");
   sh.innerHTML = '<div class="wrap"><div class="grab"></div>' +
+    (puvN ? '<div class="navinfo">' + IKO_RETEZ + '<span>Navazuje na: <b>' + esc(puvN.nazev) + "</b></span></div>" : "") +
     '<div class="fld"><label for="eN">Úkol</label><textarea id="eN" rows="2" maxlength="300" style="min-height:0">' + esc(u.nazev) + "</textarea></div>" +
     '<div class="fld"><label for="eT">Termín</label><input id="eT" type="date" value="' + esc(u.termin || "") + '"><div class="quick">' +
       '<button data-d="0">dnes</button><button data-d="1">zítra</button><button data-d="pa">pátek</button><button data-d="7">+ týden</button><button data-d="x">bez termínu</button></div></div>' +
@@ -1398,6 +1474,7 @@ function sheet(u, mode) {
       Object.keys(OPAK).map(function (k) { return '<option value="' + k + '"' + (u.opakovani === k ? " selected" : "") + ">" + OPAK[k] + "</option>"; }).join("") + "</select></div>" +
     '<div class="fld" style="flex:1;min-width:0"><label for="eM">Odhad (min)</label><input id="eM" type="number" min="0" max="2400" step="15" inputmode="numeric" value="' + (u.odhad_min || "") + '"></div></div>' +
     (isNavrh ? "" : '<label class="toggle" for="ePin"><span>Připnout nahoru</span><input id="ePin" type="checkbox"' + (u.pripnuto ? " checked" : "") + "></label>") +
+    (puvN && puvN.stav !== "hotovo" ? '<label class="toggle" for="eDok"><span>Původní úkol odškrtnout jako hotový</span><input id="eDok" type="checkbox"' + (u._dokoncit ? " checked" : "") + "></label>" : "") +
     '<div class="row"><button class="btn" id="eCancel">Zrušit</button><button class="btn pri wide" id="eSave">' + (isNavrh ? "Přijmout" : isNew ? "Přidat" : "Uložit") + "</button></div>" +
     (isNew || isNavrh ? "" : '<div id="eDelWrap"><button class="btn danger" id="eDel" style="width:100%">Smazat úkol</button></div>') +
     '<datalist id="dlZ">' + m.zakazky.map(function (z) { return '<option value="' + esc(z) + '">'; }).join("") + "</datalist>" +
@@ -1436,6 +1513,12 @@ function sheet(u, mode) {
     };
     if (!isNavrh) p.pripnuto = sh.querySelector("#ePin").checked;
     if (!p.nazev) { sh.querySelector("#eN").focus(); return; }
+    if (isNew && puvN) {
+      p.navazuje_na = puvN.id;
+      var dok = sh.querySelector("#eDok") && sh.querySelector("#eDok").checked;
+      posli("pridat", newId("m"), p).then(function () { if (dok) posli("hotovo", puvN.id); toast("Navazující úkol: " + p.nazev); }, function () {});
+      close(); return;
+    }
     if (isNew) { posli("pridat", newId("m"), p).then(function () { toast("Přidáno: " + p.nazev); }, function () {}); close(); return; }
     var zm = {};
     Object.keys(p).forEach(function (k) {
